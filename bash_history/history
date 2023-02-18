@@ -1,0 +1,28 @@
+# 在Linux下可通过history命令查看用户所有的历史操作记录，同时shell命令操作记录默认保存在用户目录下的.bash_history文件中，通过这个文件可以查询shell命令的执行历史，有助于运维人员进行系统审计和问题排查，同时，在服务器遭受黑客后，也可以通过这个命令或文件查询黑客登录服务器所执行的历史命令操作，但是有时候黑客在入侵服务器后为了毁灭痕迹，可能会删除.bash_history文件，这就需要合理的保护或备份.bash_history文件。下面介绍下history日志文件的安全配置方法。
+# 为了确保服务器的安全，保留shell命令的执行历史是非常有用的一条技巧。shell虽然有历史功能，但是这个功能并非针对审计目的而设计，因此很容易被黑客篡改或是丢失。下面再介绍一种方法，可以实现详细记录登录过系统的用户、IP地址、shell命令以及详细操作时间等，并将这些信息以文件的形式保存在一个安全的地方，以供系统审计和故障排查。
+# 将下面这段代码添加到/etc/profile文件中，即可实现上述功能。
+# history
+USER_IP=`who -u am i 2>/dev/null| awk '{print $NF}'|sed -e 's/[()]//g'`
+HISTDIR=/usr/share/.history
+if [ -z $USER_IP ]
+then
+USER_IP=`hostname`
+fi
+if [ ! -d $HISTDIR ]
+then
+mkdir -p $HISTDIR
+chmod 777 $HISTDIR
+fi
+if [ ! -d $HISTDIR/${LOGNAME} ]
+then
+mkdir -p $HISTDIR/${LOGNAME}
+chmod 300 $HISTDIR/${LOGNAME}
+fi
+export HISTSIZE=4000
+DT=`date +%Y%m%d_%H%M%S`
+export HISTFILE="$HISTDIR/${LOGNAME}/${USER_IP}.history.$DT"
+export HISTTIMEFORMAT="[%Y.%m.%d %H:%M:%S]"
+chmod 600 $HISTDIR/${LOGNAME}/*.history* 2>/dev/null
+
+# 这段代码将每个用户的shell命令执行历史以文件的形式保存在/usr/share/.history目录中，每个用户一个文件夹，并且文件夹下的每个文件以IP地址加shell命令操作时间的格式命名。
+# 保存历史命令的文件夹目录要尽量隐蔽，避免被黑客发现后删除。
